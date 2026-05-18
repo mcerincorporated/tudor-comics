@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>Lansari Noi - Tudor Comics</title>
+<title>New Releases - Tudor Comics</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -137,15 +137,15 @@ body {
 <body>
 
 <div class="header">
-  <a href="index.html" class="back">&larr; Colectie</a>
-  <h1>&#x1F195; Lansari Noi</h1>
+  <a href="index.html" class="back">&larr; Collection</a>
+  <h1>&#x1F195; New Releases</h1>
 </div>
 
 <div id="content">
-  <div class="loading">Se incarca...</div>
+  <div class="loading">Loading...</div>
 </div>
 
-<div class="section-title" style="margin-top:20px">Serii urmarite</div>
+<div class="section-title" style="margin-top:20px">Tracked Series</div>
 <div class="tracked-list" id="tracked-list"></div>
 
 <div class="toast" id="toast"></div>
@@ -173,8 +173,8 @@ async function init() {
   if (trackedSeries.length === 0) {
     document.getElementById('content').innerHTML = `
       <div class="empty-msg">
-        <p>Nu urmaresti nicio serie inca.</p>
-        <p>Adauga un comic in colectie si bifeaza "Urmareste seria".</p>
+        <p>You're not tracking any series yet.</p>
+        <p>Add a comic to your collection and check "Track this series".</p>
       </div>`;
     return;
   }
@@ -184,7 +184,7 @@ async function init() {
 
 async function loadReleases() {
   if (!WORKER) {
-    document.getElementById('content').innerHTML = '<div class="empty-msg"><p>Worker URL not configured yet</p></div>';
+    document.getElementById('content').innerHTML = '<div class="empty-msg"><p>Worker URL not configured</p></div>';
     return;
   }
 
@@ -246,15 +246,15 @@ function renderReleases(issues) {
 
   let html = '';
   if (thisWeek.length > 0) {
-    html += `<div class="section-title">Saptamana asta (${fmt(startOfWeek)} - ${fmt(endOfWeek)})</div>`;
+    html += `<div class="section-title">This Week (${fmt(startOfWeek)} - ${fmt(endOfWeek)})</div>`;
     html += '<div class="releases-grid">' + thisWeek.map(renderReleaseCard).join('') + '</div>';
   }
   if (nextWeek.length > 0) {
-    html += `<div class="section-title">Saptamana viitoare (${fmt(startNextWeek)} - ${fmt(endNextWeek)})</div>`;
+    html += `<div class="section-title">Next Week (${fmt(startNextWeek)} - ${fmt(endNextWeek)})</div>`;
     html += '<div class="releases-grid">' + nextWeek.map(renderReleaseCard).join('') + '</div>';
   }
   if (thisWeek.length === 0 && nextWeek.length === 0) {
-    html = '<div class="empty-msg"><p>Nicio lansare noua in urmatoarele 2 saptamani.</p></div>';
+    html = '<div class="empty-msg"><p>No new releases in the next 2 weeks.</p></div>';
   }
   document.getElementById('content').innerHTML = html;
 }
@@ -264,12 +264,12 @@ function renderReleaseCard(issue) {
   return `
     <div class="release-card">
       <img src="${issue.cover_url}" alt="${issue.title}" loading="lazy">
-      ${owned ? '<div class="owned-badge">Ai deja!</div>' : ''}
+      ${owned ? '<div class="owned-badge">Owned!</div>' : ''}
       <div class="release-card-info">
         <div class="release-card-title">${issue.title}</div>
         <div class="release-card-date">${issue.release_date}</div>
       </div>
-      ${!owned ? `<button class="add-btn" onclick="quickAdd(${JSON.stringify(issue).replace(/"/g, '&quot;')})">+ Adauga</button>` : ''}
+      ${!owned ? `<button class="add-btn" onclick="quickAdd(${JSON.stringify(issue).replace(/"/g, '&quot;')})">+ Add</button>` : ''}
     </div>`;
 }
 
@@ -281,7 +281,7 @@ async function quickAdd(issue) {
   issue.read = false;
   comics.push(issue);
   localStorage.setItem('comics', JSON.stringify(comics));
-  showToast('Adaugat in colectie!');
+  showToast('Added to collection!');
 
   if (WORKER) {
     await fetch(WORKER + '/collection/add', {
@@ -300,14 +300,14 @@ async function quickAdd(issue) {
 
 function renderTrackedList() {
   if (trackedSeries.length === 0) {
-    document.getElementById('tracked-list').innerHTML = '<div style="color:var(--muted);font-size:0.85rem">Nicio serie urmarita</div>';
+    document.getElementById('tracked-list').innerHTML = '<div style="color:var(--muted);font-size:0.85rem">No tracked series</div>';
     return;
   }
   document.getElementById('tracked-list').innerHTML = trackedSeries.map(s => `
     <div class="tracked-item">
       <img src="${s.image_url || ''}" alt="">
       <div class="tracked-item-name">${s.name} <span style="color:var(--muted);font-size:0.75rem">${s.publisher || ''}</span></div>
-      <button class="tracked-item-unsub" onclick="untrack('${s.id}')">Nu mai urma</button>
+      <button class="tracked-item-unsub" onclick="untrack('${s.id}')">Untrack</button>
     </div>`).join('');
 }
 
@@ -315,7 +315,7 @@ async function untrack(id) {
   trackedSeries = trackedSeries.filter(s => s.id !== id);
   localStorage.setItem('tracked-series', JSON.stringify(trackedSeries));
   renderTrackedList();
-  showToast('Serie dezabonata');
+  showToast('Series untracked');
   if (WORKER) {
     await fetch(WORKER + '/series/untrack', {
       method: 'POST',

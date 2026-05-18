@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -355,19 +355,19 @@ body {
   <h1>&#x1F4DA; Tudor Comics</h1>
   <div class="stats">
     <span id="stat-total">0 comics</span>
-    <span id="stat-series">0 serii</span>
-    <span id="stat-read">0 citite</span>
+    <span id="stat-series">0 series</span>
+    <span id="stat-read">0 read</span>
   </div>
   <div class="nav-links">
-    <a href="releases.html">&#x1F195; Lansari noi</a>
+    <a href="releases.html">&#x1F195; New Releases</a>
   </div>
 </div>
 
 <div class="filters" id="filters"></div>
 <div class="grid" id="grid"></div>
 <div class="empty-state" id="empty" style="display:none">
-  <h2>Colectia e goala</h2>
-  <p>Apasa + pentru a cauta si adauga primul tau comic!</p>
+  <h2>Collection is empty</h2>
+  <p>Tap + to search and add your first comic!</p>
 </div>
 
 <button class="fab" onclick="openSearch()">+</button>
@@ -375,7 +375,7 @@ body {
 <!-- Search Modal -->
 <div class="modal-overlay" id="search-modal">
   <div class="modal">
-    <h2>Cauta un comic</h2>
+    <h2>Search Comics</h2>
     <input class="search-input" id="search-input" placeholder="Batman, Spider-Man, X-Men..." autocomplete="off">
     <div class="search-results" id="search-results"></div>
   </div>
@@ -384,7 +384,7 @@ body {
 <!-- Add Modal -->
 <div class="modal-overlay" id="add-modal">
   <div class="modal">
-    <h2>Adauga in colectie</h2>
+    <h2>Add to Collection</h2>
     <div id="add-content"></div>
   </div>
 </div>
@@ -436,15 +436,15 @@ function renderStats() {
   const series = new Set(comics.map(c => c.series)).size;
   const read = comics.filter(c => c.read).length;
   document.getElementById('stat-total').textContent = `${comics.length} comics`;
-  document.getElementById('stat-series').textContent = `${series} serii`;
-  document.getElementById('stat-read').textContent = `${read} citite`;
+  document.getElementById('stat-series').textContent = `${series} series`;
+  document.getElementById('stat-read').textContent = `${read} read`;
 }
 
 function renderFilters() {
   const publishers = [...new Set(comics.map(c => c.publisher))];
   const locations = [...new Set(comics.map(c => c.location).filter(Boolean))];
 
-  let html = `<button class="filter-btn ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">Toate</button>`;
+  let html = `<button class="filter-btn ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All</button>`;
   publishers.forEach(p => {
     const short = p.replace(' Comics', '').replace(' Entertainment', '');
     html += `<button class="filter-btn ${currentFilter === 'pub:' + p ? 'active' : ''}" onclick="setFilter('pub:${p}')">${short}</button>`;
@@ -454,7 +454,7 @@ function renderFilters() {
       html += `<button class="filter-btn ${currentFilter === 'loc:' + l ? 'active' : ''}" onclick="setFilter('loc:${l}')">${l}</button>`;
     });
   }
-  html += `<button class="filter-btn ${currentFilter === 'unread' ? 'active' : ''}" onclick="setFilter('unread')">Necitite</button>`;
+  html += `<button class="filter-btn ${currentFilter === 'unread' ? 'active' : ''}" onclick="setFilter('unread')">Unread</button>`;
   document.getElementById('filters').innerHTML = html;
 }
 
@@ -518,7 +518,7 @@ document.getElementById('search-input').addEventListener('input', (e) => {
     document.getElementById('search-results').innerHTML = '';
     return;
   }
-  document.getElementById('search-results').innerHTML = '<div class="search-loading">Se cauta...</div>';
+  document.getElementById('search-results').innerHTML = '<div class="search-loading">Searching...</div>';
   searchTimeout = setTimeout(() => doSearch(q), 300);
 });
 
@@ -531,7 +531,7 @@ async function doSearch(q) {
     const resp = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}`);
     const data = await resp.json();
     if (!data.results || data.results.length === 0) {
-      document.getElementById('search-results').innerHTML = '<div class="search-loading">Niciun rezultat</div>';
+      document.getElementById('search-results').innerHTML = '<div class="search-loading">No results</div>';
       return;
     }
     const html = data.results.map(r => {
@@ -553,13 +553,13 @@ async function doSearch(q) {
           <img src="${img}" alt="">
           <div class="search-item-info">
             <div class="search-item-title">${vol} #${num}</div>
-            <div class="search-item-meta">${date}${inCollection ? ' &#x2714; In colectie' : ''}</div>
+            <div class="search-item-meta">${date}${inCollection ? ' &#x2714; In collection' : ''}</div>
           </div>
         </div>`;
     }).join('');
     document.getElementById('search-results').innerHTML = html;
   } catch (e) {
-    document.getElementById('search-results').innerHTML = `<div class="search-loading">Eroare: ${e.message}</div>`;
+    document.getElementById('search-results').innerHTML = `<div class="search-loading">Error: ${e.message}</div>`;
   }
 }
 
@@ -584,29 +584,29 @@ function openAddForm(comic) {
         <input id="add-publisher" placeholder="Marvel Comics, DC Comics...">
       </div>
       <div class="field-group">
-        <label>Locatie in casa</label>
-        <input id="add-location" placeholder="Raft camera Tudor, Cutie living...">
+        <label>Location</label>
+        <input id="add-location" placeholder="Tudor's shelf, Living room box...">
       </div>
       <div class="field-group">
-        <label>Stare</label>
+        <label>Condition</label>
         <select id="add-condition">
-          <option value="mint">Mint (perfecta)</option>
+          <option value="mint">Mint</option>
           <option value="near-mint">Near Mint</option>
-          <option value="good">Good (buna)</option>
-          <option value="fair">Fair (ok)</option>
+          <option value="good">Good</option>
+          <option value="fair">Fair</option>
         </select>
       </div>
       <div class="checkbox-row">
         <input type="checkbox" id="add-read">
-        <label for="add-read">Citit</label>
+        <label for="add-read">Read</label>
       </div>
       <div class="checkbox-row">
         <input type="checkbox" id="add-track">
-        <label for="add-track">Urmareste seria (notificari lansari noi)</label>
+        <label for="add-track">Track this series (new release notifications)</label>
       </div>
       <div class="detail-actions">
-        <button class="btn btn-secondary" onclick="closeAdd()">Anuleaza</button>
-        <button class="btn btn-primary" onclick="confirmAdd(${JSON.stringify(comic).replace(/"/g, '&quot;')})">Adauga</button>
+        <button class="btn btn-secondary" onclick="closeAdd()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmAdd(${JSON.stringify(comic).replace(/"/g, '&quot;')})">Add</button>
       </div>
     </div>`;
 }
@@ -622,10 +622,10 @@ async function confirmAdd(comic) {
   localStorage.setItem('comics', JSON.stringify(comics));
   render();
   closeAdd();
-  showToast('Comic adaugat!');
+  showToast('Comic added!');
 
   const resp = await workerPost('/collection/add', comic);
-  if (!resp) showToast('Eroare la salvare pe server');
+  if (!resp) showToast('Error saving to server');
 
   if (document.getElementById('add-track').checked && comic.series_id) {
     const series = {
@@ -655,11 +655,11 @@ function openDetail(id) {
     <div class="detail-series">${c.series} &bull; ${c.publisher} &bull; ${c.release_date || 'N/A'}</div>
     <div class="detail-fields">
       <div class="field-group">
-        <label>Locatie</label>
+        <label>Location</label>
         <input id="det-location" value="${c.location || ''}">
       </div>
       <div class="field-group">
-        <label>Stare</label>
+        <label>Condition</label>
         <select id="det-condition">
           <option value="mint" ${c.condition === 'mint' ? 'selected' : ''}>Mint</option>
           <option value="near-mint" ${c.condition === 'near-mint' ? 'selected' : ''}>Near Mint</option>
@@ -668,17 +668,17 @@ function openDetail(id) {
         </select>
       </div>
       <div class="field-group">
-        <label>Note</label>
+        <label>Notes</label>
         <textarea id="det-notes">${c.notes || ''}</textarea>
       </div>
       <div class="checkbox-row">
         <input type="checkbox" id="det-read" ${c.read ? 'checked' : ''}>
-        <label for="det-read">Citit</label>
+        <label for="det-read">Read</label>
       </div>
     </div>
     <div class="detail-actions">
-      <button class="btn btn-danger" onclick="deleteComic('${c.id}')">Sterge</button>
-      <button class="btn btn-primary" onclick="saveDetail('${c.id}')">Salveaza</button>
+      <button class="btn btn-danger" onclick="deleteComic('${c.id}')">Delete</button>
+      <button class="btn btn-primary" onclick="saveDetail('${c.id}')">Save</button>
     </div>`;
 }
 
@@ -699,17 +699,17 @@ async function saveDetail(id) {
   localStorage.setItem('comics', JSON.stringify(comics));
   render();
   closeDetail();
-  showToast('Salvat!');
+  showToast('Saved!');
   await workerPost('/collection/edit', updates);
 }
 
 async function deleteComic(id) {
-  if (!confirm('Stergi acest comic din colectie?')) return;
+  if (!confirm('Remove this comic from your collection?')) return;
   comics = comics.filter(c => c.id !== id);
   localStorage.setItem('comics', JSON.stringify(comics));
   render();
   closeDetail();
-  showToast('Sters din colectie');
+  showToast('Removed from collection');
   await workerPost('/collection/delete', { id });
 }
 
