@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Tudor Comics</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1729;
+  --surface: #1a2332;
+  --card: #243044;
+  --accent: #3b82f6;
+  --marvel: #e02424;
+  --dc: #0074e0;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --radius: 12px;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+.header {
+  background: var(--surface);
+  padding: 16px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.stats span { display: flex; align-items: center; gap: 4px; }
+.nav-links {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.nav-links a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(59,130,246,0.1);
+}
+.nav-links a:hover { background: rgba(59,130,246,0.2); }
+.filters {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.filters::-webkit-scrollbar { display: none; }
+.filter-btn {
+  background: var(--card);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 16px 20px;
+}
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+.card:active { transform: scale(0.97); }
+.card img {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  display: block;
+}
+.card-info {
+  padding: 10px;
+}
+.card-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meta {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.publisher-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.publisher-badge.marvel { background: var(--marvel); color: white; }
+.publisher-badge.dc { background: var(--dc); color: white; }
+.publisher-badge.other { background: rgba(255,255,255,0.2); color: white; }
+.read-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  background: var(--success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.empty-state h2 { font-size: 1.2rem; margin-bottom: 8px; color: var(--text); }
+.empty-state p { font-size: 0.9rem; margin-bottom: 20px; }
+
+/* FAB */
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+  transition: transform 0.2s;
+}
+.fab:active { transform: scale(0.9); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 200;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px 20px;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal h2 {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* Search */
+.search-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card);
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-results {
+  margin-top: 12px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.search-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.search-item:hover { background: var(--card); }
+.search-item img {
+  width: 50px;
+  height: 75px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.search-item-info { flex: 1; }
+.search-item-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+.search-item-meta { font-size: 0.75rem; color: var(--muted); }
+.search-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+}
+
+/* Detail modal */
+.detail-cover {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.detail-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+.detail-series { font-size: 0.9rem; color: var(--muted); margin-bottom: 16px; }
+.detail-fields { display: flex; flex-direction: column; gap: 12px; }
+.field-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.field-group input, .field-group select, .field-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.field-group textarea { resize: vertical; min-height: 60px; }
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn:active { opacity: 0.7; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-secondary { background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,0.1); }
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checkbox-row input[type="checkbox"] { width: 18px; height: 18px; }
+
+/* Add form */
+.add-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.add-preview {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card);
+  border-radius: 8px;
+}
+.add-preview img { width: 60px; height: 90px; object-fit: cover; border-radius: 4px; }
+.add-preview-info { flex: 1; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#x1F4DA; Tudor Comics</h1>
+  <div class="stats">
+    <span id="stat-total">0 comics</span>
+    <span id="stat-series">0 serii</span>
+    <span id="stat-read">0 citite</span>
+  </div>
+  <div class="nav-links">
+    <a href="releases.html">&#x1F195; Lansari noi</a>
+  </div>
+</div>
+
+<div class="filters" id="filters"></div>
+<div class="grid" id="grid"></div>
+<div class="empty-state" id="empty" style="display:none">
+  <h2>Colectia e goala</h2>
+  <p>Apasa + pentru a cauta si adauga primul tau comic!</p>
+</div>
+
+<button class="fab" onclick="openSearch()">+</button>
+
+<!-- Search Modal -->
+<div class="modal-overlay" id="search-modal">
+  <div class="modal">
+    <h2>Cauta un comic</h2>
+    <input class="search-input" id="search-input" placeholder="Batman, Spider-Man, X-Men..." autocomplete="off">
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <h2>Adauga in colectie</h2>
+    <div id="add-content"></div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WORKER = ''; // Will be set after Cloudflare Worker deploy
+let comics = [];
+let trackedSeries = [];
+let currentFilter = 'all';
+let searchTimeout = null;
+
+async function init() {
+  await loadData();
+  render();
+}
+
+async function loadData() {
+  try {
+    const [comicsResp, seriesResp] = await Promise.all([
+      fetch('comics.json?_=' + Date.now()),
+      fetch('tracked-series.json?_=' + Date.now())
+    ]);
+    comics = await comicsResp.json();
+    trackedSeries = await seriesResp.json();
+  } catch (e) {
+    comics = JSON.parse(localStorage.getItem('comics') || '[]');
+    trackedSeries = JSON.parse(localStorage.getItem('tracked-series') || '[]');
+  }
+  localStorage.setItem('comics', JSON.stringify(comics));
+  localStorage.setItem('tracked-series', JSON.stringify(trackedSeries));
+}
+
+function render() {
+  renderStats();
+  renderFilters();
+  renderGrid();
+}
+
+function renderStats() {
+  const series = new Set(comics.map(c => c.series)).size;
+  const read = comics.filter(c => c.read).length;
+  document.getElementById('stat-total').textContent = `${comics.length} comics`;
+  document.getElementById('stat-series').textContent = `${series} serii`;
+  document.getElementById('stat-read').textContent = `${read} citite`;
+}
+
+function renderFilters() {
+  const publishers = [...new Set(comics.map(c => c.publisher))];
+  const locations = [...new Set(comics.map(c => c.location).filter(Boolean))];
+
+  let html = `<button class="filter-btn ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('all')">Toate</button>`;
+  publishers.forEach(p => {
+    const short = p.replace(' Comics', '').replace(' Entertainment', '');
+    html += `<button class="filter-btn ${currentFilter === 'pub:' + p ? 'active' : ''}" onclick="setFilter('pub:${p}')">${short}</button>`;
+  });
+  if (locations.length > 0) {
+    locations.forEach(l => {
+      html += `<button class="filter-btn ${currentFilter === 'loc:' + l ? 'active' : ''}" onclick="setFilter('loc:${l}')">${l}</button>`;
+    });
+  }
+  html += `<button class="filter-btn ${currentFilter === 'unread' ? 'active' : ''}" onclick="setFilter('unread')">Necitite</button>`;
+  document.getElementById('filters').innerHTML = html;
+}
+
+function renderGrid() {
+  let filtered = comics;
+  if (currentFilter === 'unread') {
+    filtered = comics.filter(c => !c.read);
+  } else if (currentFilter.startsWith('pub:')) {
+    filtered = comics.filter(c => c.publisher === currentFilter.slice(4));
+  } else if (currentFilter.startsWith('loc:')) {
+    filtered = comics.filter(c => c.location === currentFilter.slice(4));
+  }
+
+  if (filtered.length === 0 && comics.length === 0) {
+    document.getElementById('grid').innerHTML = '';
+    document.getElementById('empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('empty').style.display = 'none';
+
+  const html = filtered.map(c => {
+    const pubClass = (c.publisher || '').toLowerCase().includes('marvel') ? 'marvel'
+      : (c.publisher || '').toLowerCase().includes('dc') ? 'dc' : 'other';
+    const pubShort = (c.publisher || '').replace(' Comics', '').replace(' Entertainment', '');
+    return `
+      <div class="card" onclick="openDetail('${c.id}')">
+        <img src="${c.cover_url}" alt="${c.title}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 300%22><rect fill=%22%23243044%22 width=%22200%22 height=%22300%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%2394a3b8%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Cover</text></svg>'">
+        ${c.read ? '<div class="read-badge">&#x2713;</div>' : ''}
+        <span class="publisher-badge ${pubClass}">${pubShort}</span>
+        <div class="card-info">
+          <div class="card-title">${c.title}</div>
+          <div class="card-meta">${c.series} #${c.issue_number}</div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('grid').innerHTML = html;
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  render();
+}
+
+// Search
+function openSearch() {
+  document.getElementById('search-modal').classList.add('active');
+  const input = document.getElementById('search-input');
+  input.value = '';
+  input.focus();
+  document.getElementById('search-results').innerHTML = '';
+}
+
+function closeSearch() {
+  document.getElementById('search-modal').classList.remove('active');
+}
+
+document.getElementById('search-input').addEventListener('input', (e) => {
+  clearTimeout(searchTimeout);
+  const q = e.target.value.trim();
+  if (q.length < 2) {
+    document.getElementById('search-results').innerHTML = '';
+    return;
+  }
+  document.getElementById('search-results').innerHTML = '<div class="search-loading">Se cauta...</div>';
+  searchTimeout = setTimeout(() => doSearch(q), 300);
+});
+
+async function doSearch(q) {
+  if (!WORKER) {
+    document.getElementById('search-results').innerHTML = '<div class="search-loading">Worker URL not configured</div>';
+    return;
+  }
+  try {
+    const resp = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}`);
+    const data = await resp.json();
+    if (!data.results || data.results.length === 0) {
+      document.getElementById('search-results').innerHTML = '<div class="search-loading">Niciun rezultat</div>';
+      return;
+    }
+    const html = data.results.map(r => {
+      const img = r.image?.small_url || '';
+      const vol = r.volume?.name || '';
+      const num = r.issue_number || '?';
+      const date = r.store_date || r.cover_date || '';
+      const inCollection = comics.some(c => c.id === '4000-' + r.id);
+      return `
+        <div class="search-item" onclick="selectSearchResult(${JSON.stringify({
+          id: '4000-' + r.id,
+          title: vol + ' #' + num,
+          series: vol,
+          series_id: r.volume?.id ? '4050-' + r.volume.id : '',
+          issue_number: num,
+          cover_url: r.image?.medium_url || img,
+          release_date: date
+        }).replace(/"/g, '&quot;')})">
+          <img src="${img}" alt="">
+          <div class="search-item-info">
+            <div class="search-item-title">${vol} #${num}</div>
+            <div class="search-item-meta">${date}${inCollection ? ' &#x2714; In colectie' : ''}</div>
+          </div>
+        </div>`;
+    }).join('');
+    document.getElementById('search-results').innerHTML = html;
+  } catch (e) {
+    document.getElementById('search-results').innerHTML = `<div class="search-loading">Eroare: ${e.message}</div>`;
+  }
+}
+
+function selectSearchResult(comic) {
+  closeSearch();
+  openAddForm(comic);
+}
+
+function openAddForm(comic) {
+  document.getElementById('add-modal').classList.add('active');
+  document.getElementById('add-content').innerHTML = `
+    <div class="add-preview">
+      <img src="${comic.cover_url}" alt="">
+      <div class="add-preview-info">
+        <div style="font-weight:600">${comic.title}</div>
+        <div style="font-size:0.8rem;color:var(--muted)">${comic.release_date || ''}</div>
+      </div>
+    </div>
+    <div class="add-form">
+      <div class="field-group">
+        <label>Publisher</label>
+        <input id="add-publisher" placeholder="Marvel Comics, DC Comics...">
+      </div>
+      <div class="field-group">
+        <label>Locatie in casa</label>
+        <input id="add-location" placeholder="Raft camera Tudor, Cutie living...">
+      </div>
+      <div class="field-group">
+        <label>Stare</label>
+        <select id="add-condition">
+          <option value="mint">Mint (perfecta)</option>
+          <option value="near-mint">Near Mint</option>
+          <option value="good">Good (buna)</option>
+          <option value="fair">Fair (ok)</option>
+        </select>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="add-read">
+        <label for="add-read">Citit</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="add-track">
+        <label for="add-track">Urmareste seria (notificari lansari noi)</label>
+      </div>
+      <div class="detail-actions">
+        <button class="btn btn-secondary" onclick="closeAdd()">Anuleaza</button>
+        <button class="btn btn-primary" onclick="confirmAdd(${JSON.stringify(comic).replace(/"/g, '&quot;')})">Adauga</button>
+      </div>
+    </div>`;
+}
+
+async function confirmAdd(comic) {
+  comic.publisher = document.getElementById('add-publisher').value || 'Unknown';
+  comic.location = document.getElementById('add-location').value || '';
+  comic.condition = document.getElementById('add-condition').value;
+  comic.read = document.getElementById('add-read').checked;
+  comic.notes = '';
+
+  comics.push({ ...comic, added_date: new Date().toISOString().split('T')[0] });
+  localStorage.setItem('comics', JSON.stringify(comics));
+  render();
+  closeAdd();
+  showToast('Comic adaugat!');
+
+  const resp = await workerPost('/collection/add', comic);
+  if (!resp) showToast('Eroare la salvare pe server');
+
+  if (document.getElementById('add-track').checked && comic.series_id) {
+    const series = {
+      id: comic.series_id,
+      name: comic.series,
+      publisher: comic.publisher,
+      image_url: comic.cover_url,
+    };
+    trackedSeries.push({ ...series, tracked_since: new Date().toISOString().split('T')[0] });
+    localStorage.setItem('tracked-series', JSON.stringify(trackedSeries));
+    await workerPost('/series/track', series);
+  }
+}
+
+function closeAdd() {
+  document.getElementById('add-modal').classList.remove('active');
+}
+
+// Detail
+function openDetail(id) {
+  const c = comics.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('detail-modal').classList.add('active');
+  document.getElementById('detail-content').innerHTML = `
+    <img class="detail-cover" src="${c.cover_url}" alt="${c.title}">
+    <div class="detail-title">${c.title}</div>
+    <div class="detail-series">${c.series} &bull; ${c.publisher} &bull; ${c.release_date || 'N/A'}</div>
+    <div class="detail-fields">
+      <div class="field-group">
+        <label>Locatie</label>
+        <input id="det-location" value="${c.location || ''}">
+      </div>
+      <div class="field-group">
+        <label>Stare</label>
+        <select id="det-condition">
+          <option value="mint" ${c.condition === 'mint' ? 'selected' : ''}>Mint</option>
+          <option value="near-mint" ${c.condition === 'near-mint' ? 'selected' : ''}>Near Mint</option>
+          <option value="good" ${c.condition === 'good' ? 'selected' : ''}>Good</option>
+          <option value="fair" ${c.condition === 'fair' ? 'selected' : ''}>Fair</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Note</label>
+        <textarea id="det-notes">${c.notes || ''}</textarea>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="det-read" ${c.read ? 'checked' : ''}>
+        <label for="det-read">Citit</label>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn btn-danger" onclick="deleteComic('${c.id}')">Sterge</button>
+      <button class="btn btn-primary" onclick="saveDetail('${c.id}')">Salveaza</button>
+    </div>`;
+}
+
+function closeDetail() {
+  document.getElementById('detail-modal').classList.remove('active');
+}
+
+async function saveDetail(id) {
+  const updates = {
+    id,
+    location: document.getElementById('det-location').value,
+    condition: document.getElementById('det-condition').value,
+    notes: document.getElementById('det-notes').value,
+    read: document.getElementById('det-read').checked,
+  };
+  const idx = comics.findIndex(c => c.id === id);
+  if (idx !== -1) Object.assign(comics[idx], updates);
+  localStorage.setItem('comics', JSON.stringify(comics));
+  render();
+  closeDetail();
+  showToast('Salvat!');
+  await workerPost('/collection/edit', updates);
+}
+
+async function deleteComic(id) {
+  if (!confirm('Stergi acest comic din colectie?')) return;
+  comics = comics.filter(c => c.id !== id);
+  localStorage.setItem('comics', JSON.stringify(comics));
+  render();
+  closeDetail();
+  showToast('Sters din colectie');
+  await workerPost('/collection/delete', { id });
+}
+
+// Worker communication
+async function workerPost(path, data) {
+  if (!WORKER) return false;
+  try {
+    const r = await fetch(WORKER + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return r.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove('active');
+    }
+  });
+});
+
+init();
+</script>
+</body>
+</html>
