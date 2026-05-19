@@ -45,6 +45,12 @@ export default {
       if (request.method === 'POST' && path === '/scan') {
         return await scanCover(request, env);
       }
+      if (request.method === 'POST' && path === '/chores/save') {
+        return await saveChoresData(request, env);
+      }
+      if (request.method === 'POST' && path.startsWith('/chores/')) {
+        return await choresAction(request, env, path.split('/').pop());
+      }
 
       return json({ error: 'Not found' }, 404);
     } catch (e) {
@@ -142,22 +148,9 @@ async function scanCover(request, env) {
   const arrayBuffer = await file.arrayBuffer();
   const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-  const aiResp = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', {
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: 'You are a comic book expert. Look at this comic book cover image and identify: 1) The series/title name, 2) The issue number, 3) The publisher (Marvel, DC, Image, etc). Respond ONLY in this exact JSON format, nothing else: {"series":"SERIES NAME","issue_number":"NUMBER","publisher":"PUBLISHER"}'
-          },
-          {
-            type: 'image',
-            image: base64,
-          }
-        ]
-      }
-    ],
+  const aiResp = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
+    prompt: 'You are a comic book expert. Look at this comic book cover image and identify the series/title name, the issue number, and the publisher (Marvel, DC, Image, etc). Respond ONLY in this exact JSON format: {"series":"SERIES NAME","issue_number":"NUMBER","publisher":"PUBLISHER"}',
+    image: [...new Uint8Array(arrayBuffer)],
     max_tokens: 200,
   });
 
@@ -179,6 +172,55 @@ async function scanCover(request, env) {
     detected: parsed,
     results: cvData.results || [],
   });
+}
+
+const CHORES_REPO = 'mcerincorporated/chores';
+
+async function saveChoresData(request, env) {
+  const newData = await request.json();
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2) + '\n')));
+
+  const getResp = await fetch(`${GITHUB_API}/repos/${CHORES_REPO}/contents/data.json`, {
+    headers: { 'Authorization': `token ${env.GITHUB_TOKEN}`, 'User-Agent': 'Chores/1.0' }
+  });
+  const { sha } = await getResp.json();
+
+  const putResp = await fetch(`${GITHUB_API}/repos/${CHORES_REPO}/contents/data.json`, {
+    method: 'PUT',
+    headers: { 'Authorization': `token ${env.GITHUB_TOKEN}`, 'User-Agent': 'Chores/1.0', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: 'chores: update data', content: encoded, sha }),
+  });
+  return putResp.ok ? json({ ok: true }) : json({ error: 'Failed to save' }, 500);
+}
+
+async function choresAction(request, env, action) {
+  const payload = await request.json();
+  const getResp = await fetch(`${GITHUB_API}/repos/${CHORES_REPO}/contents/data.json`, {
+    headers: { 'Authorization': `token ${env.GITHUB_TOKEN}`, 'User-Agent': 'Chores/1.0' }
+  });
+  const { content, sha } = await getResp.json();
+  const data = JSON.parse(atob(content));
+
+  if (action === 'assign') {
+    data.completions.push(payload);
+  } else if (action === 'complete') {
+    const comp = data.completions.find(c => c.id === payload.id);
+    if (comp) comp.status = payload.status;
+  } else if (action === 'approve') {
+    const comp = data.completions.find(c => c.id === payload.id);
+    if (comp) comp.status = 'approved';
+  } else if (action === 'reject') {
+    const comp = data.completions.find(c => c.id === payload.id);
+    if (comp) comp.status = 'rejected';
+  }
+
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2) + '\n')));
+  const putResp = await fetch(`${GITHUB_API}/repos/${CHORES_REPO}/contents/data.json`, {
+    method: 'PUT',
+    headers: { 'Authorization': `token ${env.GITHUB_TOKEN}`, 'User-Agent': 'Chores/1.0', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: `chores: ${action}`, content: encoded, sha }),
+  });
+  return putResp.ok ? json({ ok: true }) : json({ error: 'Failed' }, 500);
 }
 
 async function updateJsonFile(env, file, mutator, commitMsg) {

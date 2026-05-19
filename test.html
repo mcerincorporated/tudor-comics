@@ -138,6 +138,20 @@ h1 { font-size: 1.4rem; margin-bottom: 4px; }
 }
 .confetti { display: none; text-align: center; font-size: 2rem; padding: 20px; }
 .confetti.show { display: block; animation: bounce 0.5s ease; }
+.send-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  border: none;
+  background: #22c55e;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.send-btn:active { opacity: 0.7; }
+#send-status { text-align: center; margin-top: 8px; font-size: 0.8rem; color: #94a3b8; }
 @keyframes bounce {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.2); }
@@ -164,6 +178,8 @@ h1 { font-size: 1.4rem; margin-bottom: 4px; }
 <div class="final-notes">
   <h3>Anything else you noticed?</h3>
   <textarea id="final-notes" placeholder="Slow, ugly, confusing, broken, ideas for improvement..." oninput="saveState()"></textarea>
+  <button class="send-btn" onclick="sendResults()">Send Results to Tati</button>
+  <div id="send-status"></div>
 </div>
 
 <script>
@@ -305,6 +321,21 @@ function setProblem(mi, val) {
 function saveState() {
   state.finalNotes = document.getElementById('final-notes').value;
   localStorage.setItem('tudor-test-state', JSON.stringify(state));
+}
+
+function sendResults() {
+  const earned = missions.reduce((sum, m, mi) => sum + (state.checks[mi].every(Boolean) ? m.reward : 0), 0);
+  let text = `Tudor Comics Test Results\n\nEarned: ${earned}/30 LEI\n\n`;
+  missions.forEach((m, mi) => {
+    const done = state.checks[mi].every(Boolean);
+    text += `${done ? '✅' : '❌'} Mission ${mi+1}: ${m.title} (${m.reward} lei)\n`;
+    if (state.problems[mi]) text += `   Problem: ${state.problems[mi]}\n`;
+  });
+  if (state.finalNotes) text += `\nOther notes: ${state.finalNotes}`;
+
+  const encoded = encodeURIComponent(text);
+  window.location.href = `sms:&body=${encoded}`;
+  document.getElementById('send-status').textContent = 'Opening Messages...';
 }
 
 render();
