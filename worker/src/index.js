@@ -42,6 +42,9 @@ export default {
       if (request.method === 'POST' && path === '/series/untrack') {
         return await untrackSeries(request, env);
       }
+      if (request.method === 'POST' && path === '/scan') {
+        return await scanCover(request, env);
+      }
 
       return json({ error: 'Not found' }, 404);
     } catch (e) {
@@ -129,6 +132,53 @@ async function untrackSeries(request, env) {
   return await updateJsonFile(env, 'tracked-series.json', (tracked) => {
     return tracked.filter(s => s.id !== id);
   }, `untrack: ${id}`);
+}
+
+async function scanCover(request, env) {
+  const formData = await request.formData();
+  const file = formData.get('photo');
+  if (!file) return json({ error: 'No photo uploaded' }, 400);
+
+  const arrayBuffer = await file.arrayBuffer();
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+  const aiResp = await env.AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', {
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'You are a comic book expert. Look at this comic book cover image and identify: 1) The series/title name, 2) The issue number, 3) The publisher (Marvel, DC, Image, etc). Respond ONLY in this exact JSON format, nothing else: {"series":"SERIES NAME","issue_number":"NUMBER","publisher":"PUBLISHER"}'
+          },
+          {
+            type: 'image',
+            image: base64,
+          }
+        ]
+      }
+    ],
+    max_tokens: 200,
+  });
+
+  let parsed;
+  try {
+    const text = aiResp.response || aiResp.result || JSON.stringify(aiResp);
+    const jsonMatch = text.match(/\{[^}]+\}/);
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    return json({ error: 'Could not parse cover', raw: aiResp }, 422);
+  }
+
+  const q = `${parsed.series} ${parsed.issue_number}`;
+  const cvUrl = `${COMIC_VINE}/search/?api_key=${env.COMIC_VINE_KEY}&format=json&resources=issue&query=${encodeURIComponent(q)}&limit=10&field_list=id,name,issue_number,volume,image,store_date,cover_date`;
+  const cvResp = await fetch(cvUrl, { headers: { 'User-Agent': 'TudorComics/1.0' } });
+  const cvData = await cvResp.json();
+
+  return json({
+    detected: parsed,
+    results: cvData.results || [],
+  });
 }
 
 async function updateJsonFile(env, file, mutator, commitMsg) {

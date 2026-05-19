@@ -181,6 +181,15 @@ body {
   transition: transform 0.2s;
 }
 .fab:active { transform: scale(0.9); }
+.fab-camera {
+  right: 80px;
+  background: var(--success);
+  font-size: 1.3rem;
+  box-shadow: 0 4px 16px rgba(34,197,94,0.4);
+}
+.scan-preview { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; margin-bottom: 12px; }
+.scan-detected { background: var(--card); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; }
+.scan-detected strong { color: var(--accent); }
 
 /* Modal */
 .modal-overlay {
@@ -371,6 +380,16 @@ body {
 </div>
 
 <button class="fab" onclick="openSearch()">+</button>
+<button class="fab fab-camera" onclick="document.getElementById('camera-input').click()">&#x1F4F7;</button>
+<input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="scanCover(this)">
+
+<!-- Scan Modal -->
+<div class="modal-overlay" id="scan-modal">
+  <div class="modal">
+    <h2 id="scan-title">Scanning cover...</h2>
+    <div id="scan-content"></div>
+  </div>
+</div>
 
 <!-- Search Modal -->
 <div class="modal-overlay" id="search-modal">
@@ -711,6 +730,89 @@ async function deleteComic(id) {
   closeDetail();
   showToast('Removed from collection');
   await workerPost('/collection/delete', { id });
+}
+
+// Camera scan
+async function scanCover(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  document.getElementById('scan-modal').classList.add('active');
+  document.getElementById('scan-title').textContent = 'Scanning cover...';
+
+  const previewUrl = URL.createObjectURL(file);
+  document.getElementById('scan-content').innerHTML = `
+    <img class="scan-preview" src="${previewUrl}">
+    <div class="scan-detected">Analyzing image with AI...</div>`;
+
+  if (!WORKER) {
+    document.getElementById('scan-content').innerHTML += '<div class="scan-detected">Worker not configured</div>';
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('photo', file);
+
+  try {
+    const resp = await fetch(WORKER + '/scan', { method: 'POST', body: formData });
+    const data = await resp.json();
+
+    if (data.error) {
+      document.getElementById('scan-title').textContent = 'Could not identify';
+      document.getElementById('scan-content').innerHTML = `
+        <img class="scan-preview" src="${previewUrl}">
+        <div class="scan-detected">Error: ${data.error}</div>`;
+      return;
+    }
+
+    document.getElementById('scan-title').textContent = 'Found it!';
+    let html = `<img class="scan-preview" src="${previewUrl}">`;
+    html += `<div class="scan-detected"><strong>Detected:</strong> ${data.detected.series} #${data.detected.issue_number} (${data.detected.publisher})</div>`;
+
+    if (data.results && data.results.length > 0) {
+      html += '<div class="search-results">';
+      html += data.results.map(r => {
+        const img = r.image?.small_url || '';
+        const vol = r.volume?.name || '';
+        const num = r.issue_number || '?';
+        const date = r.store_date || r.cover_date || '';
+        const inCollection = comics.some(c => c.id === '4000-' + r.id);
+        return `
+          <div class="search-item" onclick="selectScanResult(${JSON.stringify({
+            id: '4000-' + r.id,
+            title: vol + ' #' + num,
+            series: vol,
+            series_id: r.volume?.id ? '4050-' + r.volume.id : '',
+            issue_number: num,
+            cover_url: r.image?.medium_url || img,
+            release_date: date,
+            publisher: '${data.detected.publisher}'
+          }).replace(/"/g, '&quot;')})">
+            <img src="${img}" alt="">
+            <div class="search-item-info">
+              <div class="search-item-title">${vol} #${num}</div>
+              <div class="search-item-meta">${date}${inCollection ? ' &#x2714; In collection' : ''}</div>
+            </div>
+          </div>`;
+      }).join('');
+      html += '</div>';
+    } else {
+      html += '<div class="scan-detected">No matches on Comic Vine. Try manual search.</div>';
+    }
+
+    document.getElementById('scan-content').innerHTML = html;
+  } catch (e) {
+    document.getElementById('scan-title').textContent = 'Error';
+    document.getElementById('scan-content').innerHTML = `
+      <img class="scan-preview" src="${previewUrl}">
+      <div class="scan-detected">Error: ${e.message}</div>`;
+  }
+}
+
+function selectScanResult(comic) {
+  document.getElementById('scan-modal').classList.remove('active');
+  openAddForm(comic);
 }
 
 // Worker communication
