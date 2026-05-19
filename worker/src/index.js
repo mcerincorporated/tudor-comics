@@ -146,24 +146,27 @@ async function scanCover(request, env) {
   if (!file) return json({ error: 'No photo uploaded' }, 400);
 
   const arrayBuffer = await file.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-  const aiResp = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-    prompt: 'You are a comic book expert. Look at this comic book cover image and identify the series/title name, the issue number, and the publisher (Marvel, DC, Image, etc). Respond ONLY in this exact JSON format: {"series":"SERIES NAME","issue_number":"NUMBER","publisher":"PUBLISHER"}',
-    image: [...new Uint8Array(arrayBuffer)],
-    max_tokens: 200,
+  const aiResp = await env.AI.run('@cf/unum/uform-gen2-qwen-500m', {
+    prompt: 'Describe this comic book cover. What is the title, series name, issue number, and publisher?',
+    image: Array.from(new Uint8Array(arrayBuffer)),
   });
 
-  let parsed;
+  const text = aiResp.response || aiResp.description || aiResp.result || JSON.stringify(aiResp);
+
+  let parsed = { series: '', issue_number: '', publisher: '' };
   try {
-    const text = aiResp.response || aiResp.result || JSON.stringify(aiResp);
     const jsonMatch = text.match(/\{[^}]+\}/);
-    parsed = JSON.parse(jsonMatch[0]);
-  } catch (e) {
-    return json({ error: 'Could not parse cover', raw: aiResp }, 422);
+    if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+  } catch (e) {}
+
+  if (!parsed.series) {
+    parsed.description = text;
+    const words = text.replace(/[^a-zA-Z0-9\s#-]/g, '').trim();
+    parsed.series = words.split(/\s+/).slice(0, 4).join(' ');
   }
 
-  const q = `${parsed.series} ${parsed.issue_number}`;
+  const q = parsed.series + (parsed.issue_number ? ' ' + parsed.issue_number : '');
   const cvUrl = `${COMIC_VINE}/search/?api_key=${env.COMIC_VINE_KEY}&format=json&resources=issue&query=${encodeURIComponent(q)}&limit=10&field_list=id,name,issue_number,volume,image,store_date,cover_date`;
   const cvResp = await fetch(cvUrl, { headers: { 'User-Agent': 'TudorComics/1.0' } });
   const cvData = await cvResp.json();
@@ -171,6 +174,7 @@ async function scanCover(request, env) {
   return json({
     detected: parsed,
     results: cvData.results || [],
+    raw_description: text,
   });
 }
 
