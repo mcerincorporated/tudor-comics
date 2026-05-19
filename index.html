@@ -823,64 +823,70 @@ async function scanCover(input) {
     return;
   }
 
-  const resized = await resizeImage(file);
-  const formData = new FormData();
-  formData.append('photo', resized, 'photo.jpg');
+  document.getElementById('scan-title').textContent = 'What comic is this?';
+  document.getElementById('scan-content').innerHTML = `
+    <img class="scan-preview" src="${previewUrl}">
+    <div class="scan-detected">Type the title you see on the cover:</div>
+    <input class="search-input" id="scan-search-input" placeholder="e.g. Batman Killing Joke" autocomplete="off">
+    <div id="scan-results" class="search-results"></div>`;
 
+  const scanInput = document.getElementById('scan-search-input');
+  scanInput.focus();
+  let scanTimeout = null;
+  scanInput.addEventListener('input', (e) => {
+    clearTimeout(scanTimeout);
+    const q = e.target.value.trim();
+    if (q.length < 2) { document.getElementById('scan-results').innerHTML = ''; return; }
+    document.getElementById('scan-results').innerHTML = '<div class="search-loading">Searching...</div>';
+    scanTimeout = setTimeout(async () => {
+      try {
+        const resp = await fetch(`${WORKER}/search?q=${encodeURIComponent(q)}`);
+        const data = await resp.json();
+        if (!data.results || data.results.length === 0) {
+          document.getElementById('scan-results').innerHTML = '<div class="search-loading">No results</div>';
+          return;
+        }
+        document.getElementById('scan-results').innerHTML = data.results.map(r => {
+          const img = r.image?.small_url || '';
+          const vol = r.volume?.name || '';
+          const num = r.issue_number || '?';
+          const date = r.store_date || r.cover_date || '';
+          const inCollection = comics.some(c => c.id === '4000-' + r.id);
+          return `
+            <div class="search-item" onclick="selectScanResult(${JSON.stringify({
+              id: '4000-' + r.id,
+              title: vol + ' #' + num,
+              series: vol,
+              series_id: r.volume?.id ? '4050-' + r.volume.id : '',
+              issue_number: num,
+              cover_url: r.image?.medium_url || img,
+              release_date: date
+            }).replace(/"/g, '&quot;')})">
+              <img src="${img}" alt="">
+              <div class="search-item-info">
+                <div class="search-item-title">${vol} #${num}</div>
+                <div class="search-item-meta">${date}${inCollection ? ' &#x2714; In collection' : ''}</div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        document.getElementById('scan-results').innerHTML = `<div class="search-loading">Error: ${err.message}</div>`;
+      }
+    }, 300);
+  });
+
+  // Try AI in background — if it works, pre-fill the input
   try {
+    const resized = await resizeImage(file);
+    const formData = new FormData();
+    formData.append('photo', resized, 'photo.jpg');
     const resp = await fetch(WORKER + '/scan', { method: 'POST', body: formData });
     const data = await resp.json();
-
-    if (data.error) {
-      document.getElementById('scan-title').textContent = 'Could not identify';
-      document.getElementById('scan-content').innerHTML = `
-        <img class="scan-preview" src="${previewUrl}">
-        <div class="scan-detected">Error: ${data.error}</div>`;
-      return;
+    if (data.detected && data.detected.series && scanInput.value === '') {
+      scanInput.value = data.detected.series + (data.detected.issue_number ? ' ' + data.detected.issue_number : '');
+      scanInput.dispatchEvent(new Event('input'));
     }
-
-    document.getElementById('scan-title').textContent = 'Found it!';
-    let html = `<img class="scan-preview" src="${previewUrl}">`;
-    html += `<div class="scan-detected"><strong>Detected:</strong> ${data.detected.series} #${data.detected.issue_number} (${data.detected.publisher})</div>`;
-
-    if (data.results && data.results.length > 0) {
-      html += '<div class="search-results">';
-      html += data.results.map(r => {
-        const img = r.image?.small_url || '';
-        const vol = r.volume?.name || '';
-        const num = r.issue_number || '?';
-        const date = r.store_date || r.cover_date || '';
-        const inCollection = comics.some(c => c.id === '4000-' + r.id);
-        return `
-          <div class="search-item" onclick="selectScanResult(${JSON.stringify({
-            id: '4000-' + r.id,
-            title: vol + ' #' + num,
-            series: vol,
-            series_id: r.volume?.id ? '4050-' + r.volume.id : '',
-            issue_number: num,
-            cover_url: r.image?.medium_url || img,
-            release_date: date,
-            publisher: '${data.detected.publisher}'
-          }).replace(/"/g, '&quot;')})">
-            <img src="${img}" alt="">
-            <div class="search-item-info">
-              <div class="search-item-title">${vol} #${num}</div>
-              <div class="search-item-meta">${date}${inCollection ? ' &#x2714; In collection' : ''}</div>
-            </div>
-          </div>`;
-      }).join('');
-      html += '</div>';
-    } else {
-      html += '<div class="scan-detected">No matches on Comic Vine. Try manual search.</div>';
-    }
-
-    document.getElementById('scan-content').innerHTML = html;
-  } catch (e) {
-    document.getElementById('scan-title').textContent = 'Error';
-    document.getElementById('scan-content').innerHTML = `
-      <img class="scan-preview" src="${previewUrl}">
-      <div class="scan-detected">Error: ${e.message}</div>`;
-  }
+  } catch (e) {}
 }
 
 function selectScanResult(comic) {
