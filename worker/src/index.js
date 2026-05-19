@@ -161,22 +161,21 @@ async function scanCover(request, env) {
   const arrayBuffer = await file.arrayBuffer();
 
   const aiResp = await env.AI.run('@cf/unum/uform-gen2-qwen-500m', {
-    prompt: 'Describe this comic book cover. What is the title, series name, issue number, and publisher?',
+    prompt: 'Read all text visible on this image. List every word you can see.',
     image: Array.from(new Uint8Array(arrayBuffer)),
   });
 
-  const text = aiResp.response || aiResp.description || aiResp.result || JSON.stringify(aiResp);
+  const text = aiResp.response || aiResp.description || aiResp.result || aiResp.text || JSON.stringify(aiResp);
 
-  let parsed = { series: '', issue_number: '', publisher: '' };
+  let parsed = { series: text.trim(), issue_number: '', publisher: '' };
   try {
     const jsonMatch = text.match(/\{[^}]+\}/);
     if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
   } catch (e) {}
 
-  if (!parsed.series) {
-    parsed.description = text;
-    const words = text.replace(/[^a-zA-Z0-9\s#-]/g, '').trim();
-    parsed.series = words.split(/\s+/).slice(0, 4).join(' ');
+  if (!parsed.series || parsed.series === '{}') {
+    const clean = text.replace(/<[^>]+>/g, '').replace(/[^a-zA-Z0-9\s#.:-]/g, ' ').trim();
+    parsed.series = clean;
   }
 
   const q = parsed.series + (parsed.issue_number ? ' ' + parsed.issue_number : '');
