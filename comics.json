@@ -1,16 +1,1 @@
-[
-  {
-    "id": "4000-test",
-    "title": "Test Comic",
-    "series": "Test",
-    "issue_number": "1",
-    "publisher": "Marvel Comics",
-    "cover_url": "",
-    "release_date": "2026-01-01",
-    "location": "",
-    "condition": "mint",
-    "read": false,
-    "notes": "",
-    "added_date": "2026-05-19"
-  }
-]
+[]
