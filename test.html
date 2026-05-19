@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tudor Comics — Test Missions</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0f1729;
+  color: #f1f5f9;
+  min-height: 100vh;
+  padding: 20px;
+  padding-bottom: 100px;
+}
+h1 { font-size: 1.4rem; margin-bottom: 4px; }
+.subtitle { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
+.reward-bar {
+  background: #1a2332;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.reward-amount {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #22c55e;
+}
+.reward-label { color: #94a3b8; font-size: 0.8rem; }
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #243044;
+  border-radius: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #3b82f6);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.mission {
+  background: #1a2332;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 4px solid #243044;
+  transition: border-color 0.3s;
+}
+.mission.completed { border-left-color: #22c55e; }
+.mission-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.mission-title { font-size: 0.95rem; font-weight: 600; }
+.mission-reward {
+  background: rgba(34,197,94,0.15);
+  color: #22c55e;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.mission-reward.earned {
+  background: #22c55e;
+  color: #0f1729;
+}
+.task {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+}
+.task input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #22c55e;
+}
+.task label {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+.task.checked label { color: #94a3b8; text-decoration: line-through; }
+.problem-area {
+  margin-top: 10px;
+}
+.problem-area textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #243044;
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  resize: vertical;
+  min-height: 40px;
+}
+.problem-area textarea::placeholder { color: #64748b; }
+.site-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.final-notes {
+  background: #1a2332;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 20px;
+}
+.final-notes h3 { font-size: 0.9rem; margin-bottom: 8px; }
+.final-notes textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #243044;
+  color: #f1f5f9;
+  font-size: 0.85rem;
+  resize: vertical;
+  min-height: 80px;
+}
+.confetti { display: none; text-align: center; font-size: 2rem; padding: 20px; }
+.confetti.show { display: block; animation: bounce 0.5s ease; }
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+</style>
+</head>
+<body>
+
+<h1>Tudor Comics — Test Missions</h1>
+<p class="subtitle">Complete each mission to earn LEI. Be honest!</p>
+
+<a class="site-link" href="https://mcerincorporated.github.io/tudor-comics/" target="_blank">Open Tudor Comics in new tab</a>
+
+<div class="reward-bar">
+  <div class="reward-label">EARNED</div>
+  <div class="reward-amount" id="earned">0 / 30 LEI</div>
+  <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+</div>
+
+<div id="missions"></div>
+
+<div class="confetti" id="confetti">🎉 ALL MISSIONS COMPLETE — 30 LEI EARNED! 🎉</div>
+
+<div class="final-notes">
+  <h3>Anything else you noticed?</h3>
+  <textarea id="final-notes" placeholder="Slow, ugly, confusing, broken, ideas for improvement..." oninput="saveState()"></textarea>
+</div>
+
+<script>
+const missions = [
+  {
+    title: "Open the site",
+    reward: 2,
+    tasks: [
+      "Open Tudor Comics using the blue button above",
+      "Site loads — you see 'Collection is empty' and a blue + button at the bottom"
+    ]
+  },
+  {
+    title: "Search for a comic",
+    reward: 4,
+    tasks: [
+      "Tap the blue + button",
+      "Type 'Spider-Man' in the search box",
+      "Results appear with cover images and issue numbers"
+    ]
+  },
+  {
+    title: "Add a comic to collection",
+    reward: 5,
+    tasks: [
+      "Tap any Spider-Man result from the search",
+      "Fill in: Publisher = 'Marvel Comics', Location = 'Tudor shelf', Condition = Mint",
+      "Check 'Read' if you already read it",
+      "Tap 'Add' — you see 'Comic added!' message",
+      "Comic appears in the main grid with its cover image"
+    ]
+  },
+  {
+    title: "Edit a comic",
+    reward: 3,
+    tasks: [
+      "Tap the comic you just added (in the grid)",
+      "Change Location to 'Living room box'",
+      "Tap 'Save' — you see 'Saved!' message"
+    ]
+  },
+  {
+    title: "Camera scan",
+    reward: 6,
+    tasks: [
+      "Tap the green camera button (next to the blue +)",
+      "Allow camera access when iPhone asks",
+      "Take a photo of any comic book cover you have",
+      "Wait for AI to analyze (a few seconds)",
+      "It shows what it detected + Comic Vine results",
+      "Tap a result to add it (or write in Problem if nothing matched)"
+    ]
+  },
+  {
+    title: "Filters",
+    reward: 3,
+    tasks: [
+      "Filter buttons appear below the header (All, Marvel/DC, Unread)",
+      "Tap 'Unread' — shows only unread comics",
+      "Tap 'All' — shows everything again"
+    ]
+  },
+  {
+    title: "New Releases page",
+    reward: 3,
+    tasks: [
+      "Tap 'New Releases' link at the top of the page",
+      "Page loads (might say 'No tracked series' — OK!)",
+      "Tap 'Collection' to go back to main page"
+    ]
+  },
+  {
+    title: "Delete a comic",
+    reward: 2,
+    tasks: [
+      "Tap any comic in your collection",
+      "Tap 'Delete' (red button)",
+      "Confirm when asked",
+      "Comic disappears from the grid"
+    ]
+  },
+  {
+    title: "Track a series",
+    reward: 2,
+    tasks: [
+      "Add a new comic (tap +, search, pick one)",
+      "Check 'Track this series' before tapping Add",
+      "Go to New Releases — tracked series appears in the list"
+    ]
+  }
+];
+
+let state = JSON.parse(localStorage.getItem('tudor-test-state') || 'null') || {
+  checks: missions.map(m => m.tasks.map(() => false)),
+  problems: missions.map(() => ''),
+  finalNotes: ''
+};
+
+function render() {
+  const container = document.getElementById('missions');
+  container.innerHTML = missions.map((m, mi) => {
+    const allDone = state.checks[mi].every(Boolean);
+    return `
+      <div class="mission ${allDone ? 'completed' : ''}">
+        <div class="mission-header">
+          <span class="mission-title">Mission ${mi + 1} — ${m.title}</span>
+          <span class="mission-reward ${allDone ? 'earned' : ''}">${m.reward} lei</span>
+        </div>
+        ${m.tasks.map((t, ti) => `
+          <div class="task ${state.checks[mi][ti] ? 'checked' : ''}">
+            <input type="checkbox" id="t${mi}-${ti}" ${state.checks[mi][ti] ? 'checked' : ''} onchange="toggle(${mi},${ti})">
+            <label for="t${mi}-${ti}">${t}</label>
+          </div>
+        `).join('')}
+        <div class="problem-area">
+          <textarea placeholder="Problem? Write what went wrong..." oninput="setProblem(${mi}, this.value)">${state.problems[mi]}</textarea>
+        </div>
+      </div>`;
+  }).join('');
+
+  const earned = missions.reduce((sum, m, mi) => sum + (state.checks[mi].every(Boolean) ? m.reward : 0), 0);
+  document.getElementById('earned').textContent = `${earned} / 30 LEI`;
+  document.getElementById('progress').style.width = `${(earned / 30) * 100}%`;
+  document.getElementById('confetti').classList.toggle('show', earned === 30);
+  document.getElementById('final-notes').value = state.finalNotes;
+}
+
+function toggle(mi, ti) {
+  state.checks[mi][ti] = !state.checks[mi][ti];
+  saveState();
+  render();
+}
+
+function setProblem(mi, val) {
+  state.problems[mi] = val;
+  saveState();
+}
+
+function saveState() {
+  state.finalNotes = document.getElementById('final-notes').value;
+  localStorage.setItem('tudor-test-state', JSON.stringify(state));
+}
+
+render();
+</script>
+</body>
+</html>
