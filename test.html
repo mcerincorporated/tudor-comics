@@ -333,9 +333,10 @@ function sendResults() {
   });
   if (state.finalNotes) text += `\nOther notes: ${state.finalNotes}`;
 
-  const encoded = encodeURIComponent(text);
-  window.location.href = `sms:&body=${encoded}`;
-  document.getElementById('send-status').textContent = 'Opening Messages...';
+  const subject = encodeURIComponent(`Test Results: ${earned}/30 LEI`);
+  const body = encodeURIComponent(text);
+  window.location.href = `mailto:mcerincorporated@gmail.com?subject=${subject}&body=${body}`;
+  document.getElementById('send-status').textContent = 'Opening email...';
 }
 
 render();
