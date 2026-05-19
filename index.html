@@ -187,6 +187,14 @@ body {
   font-size: 1.3rem;
   box-shadow: 0 4px 16px rgba(34,197,94,0.4);
 }
+.detail-extra { margin: 12px 0; padding: 12px; background: var(--card); border-radius: 8px; }
+.extra-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.4; margin-bottom: 8px; }
+.extra-credit { font-size: 0.8rem; color: var(--text); margin-bottom: 4px; }
+.extra-credit strong { color: var(--accent); }
+.extra-links { margin-top: 10px; font-size: 0.8rem; }
+.extra-links strong { color: var(--accent); }
+.extra-links a { color: var(--gold); text-decoration: none; margin-left: 8px; padding: 3px 8px; background: rgba(245,166,35,0.1); border-radius: 4px; }
+.extra-links a:hover { background: rgba(245,166,35,0.2); }
 .scan-preview { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; margin-bottom: 12px; }
 .scan-detected { background: var(--card); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; }
 .scan-detected strong { color: var(--accent); }
@@ -672,6 +680,7 @@ function openDetail(id) {
     <img class="detail-cover" src="${c.cover_url}" alt="${c.title}">
     <div class="detail-title">${c.title}</div>
     <div class="detail-series">${c.series} &bull; ${c.publisher} &bull; ${c.release_date || 'N/A'}</div>
+    <div id="detail-extra" class="detail-extra"><div class="search-loading">Loading details...</div></div>
     <div class="detail-fields">
       <div class="field-group">
         <label>Location</label>
@@ -699,6 +708,53 @@ function openDetail(id) {
       <button class="btn btn-danger" onclick="deleteComic('${c.id}')">Delete</button>
       <button class="btn btn-primary" onclick="saveDetail('${c.id}')">Save</button>
     </div>`;
+  loadIssueDetails(c.id);
+}
+
+async function loadIssueDetails(comicId) {
+  const el = document.getElementById('detail-extra');
+  if (!WORKER || !comicId.startsWith('4000-')) {
+    el.innerHTML = '';
+    return;
+  }
+  const issueId = comicId.replace('4000-', '');
+  try {
+    const resp = await fetch(`${WORKER}/issue?id=${issueId}`);
+    const data = await resp.json();
+    const r = data.results;
+    if (!r) { el.innerHTML = ''; return; }
+
+    let html = '';
+    if (r.description) {
+      const clean = r.description.replace(/<[^>]+>/g, '').substring(0, 300);
+      html += `<div class="extra-desc">${clean}${r.description.length > 300 ? '...' : ''}</div>`;
+    }
+    if (r.person_credits && r.person_credits.length > 0) {
+      const writers = r.person_credits.filter(p => p.role && p.role.includes('writer')).map(p => p.name);
+      const artists = r.person_credits.filter(p => p.role && (p.role.includes('artist') || p.role.includes('penciler'))).map(p => p.name);
+      if (writers.length) html += `<div class="extra-credit"><strong>Writer:</strong> ${writers.join(', ')}</div>`;
+      if (artists.length) html += `<div class="extra-credit"><strong>Artist:</strong> ${artists.join(', ')}</div>`;
+    }
+    if (r.cover_price) {
+      html += `<div class="extra-credit"><strong>Cover price:</strong> ${r.cover_price}</div>`;
+    }
+    if (r.store_date) {
+      html += `<div class="extra-credit"><strong>Released:</strong> ${r.store_date}</div>`;
+    }
+
+    const searchTitle = encodeURIComponent(`${r.volume?.name || ''} #${r.issue_number || ''}`);
+    html += `<div class="extra-links">
+      <strong>Buy:</strong>
+      <a href="https://www.amazon.co.uk/s?k=${searchTitle}" target="_blank">Amazon UK</a>
+      <a href="https://www.amazon.de/s?k=${searchTitle}" target="_blank">Amazon DE</a>
+      <a href="https://www.emag.ro/search/${searchTitle}" target="_blank">eMAG</a>
+      <a href="https://www.bookdepository.com/search?searchTerm=${searchTitle}" target="_blank">Book Dep.</a>
+    </div>`;
+
+    el.innerHTML = html || '';
+  } catch (e) {
+    el.innerHTML = '';
+  }
 }
 
 function closeDetail() {

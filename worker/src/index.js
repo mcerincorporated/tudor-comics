@@ -27,6 +27,9 @@ export default {
       if (request.method === 'GET' && path === '/issues') {
         return await getIssues(url, env);
       }
+      if (request.method === 'GET' && path === '/issue') {
+        return await getIssueDetails(url, env);
+      }
       if (request.method === 'POST' && path === '/collection/add') {
         return await addComic(request, env);
       }
@@ -85,6 +88,16 @@ async function getIssues(url, env) {
   if (!volumeId) return json({ error: 'Missing volume parameter' }, 400);
 
   let cvUrl = `${COMIC_VINE}/issues/?api_key=${env.COMIC_VINE_KEY}&format=json&filter=volume:${volumeId}${filter ? ',' + filter : ''}&sort=store_date:desc&limit=20&field_list=id,name,issue_number,volume,image,store_date,cover_date`;
+  const resp = await fetch(cvUrl, { headers: { 'User-Agent': 'TudorComics/1.0' } });
+  const data = await resp.json();
+  return json(data);
+}
+
+async function getIssueDetails(url, env) {
+  const id = url.searchParams.get('id');
+  if (!id) return json({ error: 'Missing id parameter' }, 400);
+
+  const cvUrl = `${COMIC_VINE}/issue/4000-${id}/?api_key=${env.COMIC_VINE_KEY}&format=json&field_list=id,name,issue_number,volume,image,store_date,cover_date,description,person_credits,cover_price`;
   const resp = await fetch(cvUrl, { headers: { 'User-Agent': 'TudorComics/1.0' } });
   const data = await resp.json();
   return json(data);
